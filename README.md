@@ -1,3 +1,5 @@
+This fork contains compatibility updates required to play nice with django-grappelli.
+Original lazybird's Django-Solo README is left unchanged bellow.
 
 Django Solo
 ===========
@@ -11,8 +13,8 @@ Django Solo
     |           >=)'>           | Singletons are useful for things like global
     |             \/            | settings that you want to edit from the admin
     |             /             | instead of having them in Django settings.py.
-    |                           | 
-    |                           | 
+    |                           |
+    |                           |
     +---------------------------+
 
 
