@@ -1,18 +1,12 @@
-try:
-    from django.core.cache import caches
-except ImportError:
-    from django.core.cache import get_cache
-else:
-    get_cache = lambda cache_name: caches[cache_name]
-
 from django.template import Template, Context
 from django.test import TestCase
 
 from django.test.utils import override_settings
-from solo.tests.models import SiteConfiguration
+from solo.models import get_cache
+from solo.tests.models import SiteConfiguration, SiteConfigurationWithExplicitlyGivenId
 
 
-class SigletonTest(TestCase):
+class SingletonTest(TestCase):
 
     def setUp(self):
         self.template = Template(
@@ -57,3 +51,41 @@ class SigletonTest(TestCase):
         self.assertNotIn('Config In Cache', output)
         self.assertNotIn('Default Config', output)
         self.assertIn('Config In Database', output)
+
+    @override_settings(SOLO_CACHE='default')
+    def test_delete_if_cache_enabled(self):
+        self.assertEqual(SiteConfiguration.objects.count(), 0)
+        self.assertIsNone(self.cache.get(self.cache_key))
+
+        one_cfg = SiteConfiguration.get_solo()
+        one_cfg.site_name = 'TEST SITE PLEASE IGNORE'
+        one_cfg.save()
+        self.assertEqual(SiteConfiguration.objects.count(), 1)
+        self.assertIsNotNone(self.cache.get(self.cache_key))
+
+        one_cfg.delete()
+        self.assertEqual(SiteConfiguration.objects.count(), 0)
+        self.assertIsNone(self.cache.get(self.cache_key))
+        self.assertEqual(SiteConfiguration.get_solo().site_name, 'Default Config')
+
+    @override_settings(SOLO_CACHE=None)
+    def test_delete_if_cache_disabled(self):
+        # As above, but without the cache checks
+        self.assertEqual(SiteConfiguration.objects.count(), 0)
+        one_cfg = SiteConfiguration.get_solo()
+        one_cfg.site_name = 'TEST (uncached) SITE PLEASE IGNORE'
+        one_cfg.save()
+        self.assertEqual(SiteConfiguration.objects.count(), 1)
+        one_cfg.delete()
+        self.assertEqual(SiteConfiguration.objects.count(), 0)
+        self.assertEqual(SiteConfiguration.get_solo().site_name, 'Default Config')
+
+
+class SingletonWithExplicitIdTest(TestCase):
+
+    def setUp(self):
+        SiteConfigurationWithExplicitlyGivenId.objects.all().delete()
+
+    def test_when_singleton_instance_id_is_given_created_item_will_have_given_instance_id(self):
+        item = SiteConfigurationWithExplicitlyGivenId.get_solo()
+        self.assertEquals(item.pk, SiteConfigurationWithExplicitlyGivenId.singleton_instance_id)
